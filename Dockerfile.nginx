@@ -1,6 +1,6 @@
 FROM nginx:1.27-alpine
 
-RUN apk add --no-cache certbot openssl
+RUN apk add --no-cache certbot openssl gettext
 
 EXPOSE 80 443
 
