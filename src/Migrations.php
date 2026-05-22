@@ -35,6 +35,14 @@ final class Migrations
         ');
 
         $pdo->exec('
+            CREATE TABLE IF NOT EXISTS module_configs (
+                module TEXT PRIMARY KEY,
+                config JSONB NOT NULL DEFAULT \'{}\',
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        ');
+
+        $pdo->exec('
             CREATE INDEX IF NOT EXISTS audits_device_id_created_at_idx
             ON audits (device_id, created_at DESC);
         ');

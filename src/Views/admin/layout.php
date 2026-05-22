@@ -52,6 +52,9 @@ $includeDashboard = isset($includeDashboardScript) ? (bool) $includeDashboardScr
       .col-6{grid-column:span 12}
       @media (min-width:900px){.col-6{grid-column:span 6}}
       .hint{color:var(--muted);font-size:13px;line-height:1.4}
+      .alert{border-radius:14px;padding:12px 14px;margin-bottom:14px;font-weight:700}
+      .alert.success{background:#12351f;color:#7ef29a;border:1px solid #1f5a34}
+      .alert.error{background:#3a1414;color:#ff9aa3;border:1px solid #6a252a}
     </style>
   </head>
   <body>
@@ -74,6 +77,9 @@ $includeDashboard = isset($includeDashboardScript) ? (bool) $includeDashboardScr
       </aside>
       <main class="content">
         <div class="wrap">
+          <?php if (isset($flash) && is_array($flash) && isset($flash['type'], $flash['message']) && (string) $flash['message'] !== ''): ?>
+            <div class="alert <?= ((string) $flash['type']) === 'error' ? 'error' : 'success' ?>"><?= $e((string) $flash['message']) ?></div>
+          <?php endif; ?>
           <?= $content ?? '' ?>
         </div>
       </main>

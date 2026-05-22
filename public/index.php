@@ -42,6 +42,7 @@ if (str_starts_with($request->path, '/api')) {
 $router->get('/admin', [App\Controllers\AdminController::class, 'dashboard']);
 $router->get('/admin/overview', [App\Controllers\AdminController::class, 'overview']);
 $router->get('/admin/{page}', [App\Controllers\AdminController::class, 'page']);
+$router->post('/admin/{page}', [App\Controllers\AdminController::class, 'savePage']);
 
 $router->get('/api/devices', [App\Controllers\DeviceController::class, 'index']);
 $router->post('/api/devices', [App\Controllers\DeviceController::class, 'store']);

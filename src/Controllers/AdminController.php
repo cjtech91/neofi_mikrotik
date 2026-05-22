@@ -9,6 +9,7 @@ use App\Http\Request;
 use App\Http\Response;
 use App\Mikrotik\RouterOSApiClient;
 use App\Repositories\DeviceRepository;
+use App\Repositories\ModuleConfigRepository;
 use App\Security\Crypto;
 
 final class AdminController
@@ -22,6 +23,7 @@ final class AdminController
             'pages' => $this->pages(),
             'content' => $content,
             'includeDashboardScript' => true,
+            'flash' => $this->flash($request),
         ]);
 
         return Response::html($html);
@@ -39,6 +41,7 @@ final class AdminController
                 'pages' => $this->pages(),
                 'content' => $content,
                 'includeDashboardScript' => false,
+                'flash' => $this->flash($request),
             ]);
             return Response::html($html, 404);
         }
@@ -67,6 +70,23 @@ final class AdminController
                 'ADMIN_USER' => getenv('ADMIN_USER') !== false && (string) getenv('ADMIN_USER') !== '' ? 'set' : 'not set',
                 'ADMIN_PASS' => getenv('ADMIN_PASS') !== false && (string) getenv('ADMIN_PASS') !== '' ? 'set' : 'not set',
             ];
+        } elseif ($this->isConfigurablePage($page)) {
+            $vars['devices'] = (new DeviceRepository())->all();
+            $vars['config'] = (new ModuleConfigRepository())->get($page);
+
+            if ($page === 'interfaces' && ((string) ($request->query['sync'] ?? '')) === '1') {
+                $deviceId = (int) ($request->query['device_id'] ?? 0);
+                if ($deviceId <= 0) {
+                    $deviceId = (int) (($vars['config']['default_router_id'] ?? 0));
+                }
+                if ($deviceId > 0) {
+                    try {
+                        $vars['interfaces'] = $this->fetchInterfaces($deviceId);
+                    } catch (\Throwable $e) {
+                        $vars['interfaces_error'] = $e->getMessage();
+                    }
+                }
+            }
         }
 
         $content = $this->view('admin/pages/' . $page, $vars);
@@ -76,9 +96,40 @@ final class AdminController
             'pages' => $this->pages(),
             'content' => $content,
             'includeDashboardScript' => false,
+            'flash' => $this->flash($request),
         ]);
 
         return Response::html($html);
+    }
+
+    public function savePage(Request $request, array $params): Response
+    {
+        $page = isset($params['page']) ? (string) $params['page'] : '';
+        if (!$this->isConfigurablePage($page)) {
+            return Response::redirect('/admin/' . $page);
+        }
+
+        $form = $request->form();
+        $action = isset($form['action']) ? (string) $form['action'] : 'save';
+
+        try {
+            $config = $this->extractConfig($page, $form);
+            (new ModuleConfigRepository())->set($page, $config);
+
+            if ($page === 'adblocker' && $action === 'apply') {
+                $this->applyAdblocker($config);
+                return Response::redirect('/admin/adblocker?applied=1');
+            }
+            if ($page === 'pppoe' && $action === 'apply') {
+                $this->applyPppoeDefaults($config);
+                return Response::redirect('/admin/pppoe?applied=1');
+            }
+
+            return Response::redirect('/admin/' . $page . '?saved=1');
+        } catch (\Throwable $e) {
+            $msg = rawurlencode($e->getMessage());
+            return Response::redirect('/admin/' . $page . '?error=' . $msg);
+        }
     }
 
     public function overview(Request $request, array $params): Response
@@ -189,6 +240,224 @@ final class AdminController
             'license' => ['label' => 'License', 'href' => '/admin/license'],
             'settings' => ['label' => 'Settings', 'href' => '/admin/settings'],
         ];
+    }
+
+    private function isConfigurablePage(string $page): bool
+    {
+        return in_array($page, [
+            'interfaces',
+            'pppoe',
+            'vouchers',
+            'qos',
+            'adblocker',
+            'subvendo',
+            'maps',
+            'portal',
+            'chat',
+            'hotspotsales',
+            'pppoesales',
+            'license',
+        ], true);
+    }
+
+    /** @return array<string, mixed> */
+    private function extractConfig(string $page, array $form): array
+    {
+        $config = [];
+
+        if ($page === 'interfaces') {
+            $config['default_router_id'] = (int) ($form['default_router_id'] ?? 0);
+            $config['sync_interval_sec'] = (int) ($form['sync_interval_sec'] ?? 0);
+        } elseif ($page === 'pppoe') {
+            $config['device_id'] = (int) ($form['device_id'] ?? 0);
+            $config['default_profile'] = (string) ($form['default_profile'] ?? '');
+            $config['service_name'] = (string) ($form['service_name'] ?? '');
+        } elseif ($page === 'vouchers') {
+            $config['prefix'] = (string) ($form['prefix'] ?? '');
+            $config['length'] = (int) ($form['length'] ?? 0);
+        } elseif ($page === 'qos') {
+            $config['device_id'] = (int) ($form['device_id'] ?? 0);
+            $config['default_limit'] = (string) ($form['default_limit'] ?? '');
+            $config['burst_limit'] = (string) ($form['burst_limit'] ?? '');
+        } elseif ($page === 'adblocker') {
+            $config['device_id'] = (int) ($form['device_id'] ?? 0);
+            $config['mode'] = (string) ($form['mode'] ?? 'disabled');
+            $config['redirect_ip'] = (string) ($form['redirect_ip'] ?? '0.0.0.0');
+            $config['allowlist'] = (string) ($form['allowlist'] ?? '');
+            $config['denylist'] = (string) ($form['denylist'] ?? '');
+        } elseif ($page === 'subvendo') {
+            $config['commission_percent'] = (string) ($form['commission_percent'] ?? '');
+            $config['min_wallet_balance'] = (string) ($form['min_wallet_balance'] ?? '');
+        } elseif ($page === 'maps') {
+            $config['provider'] = (string) ($form['provider'] ?? '');
+            $config['default_zoom'] = (string) ($form['default_zoom'] ?? '');
+        } elseif ($page === 'portal') {
+            $config['redirect_url'] = (string) ($form['redirect_url'] ?? '');
+            $config['theme'] = (string) ($form['theme'] ?? '');
+            $config['brand_name'] = (string) ($form['brand_name'] ?? '');
+        } elseif ($page === 'chat') {
+            $config['provider'] = (string) ($form['provider'] ?? '');
+            $config['webhook_url'] = (string) ($form['webhook_url'] ?? '');
+        } elseif ($page === 'hotspotsales' || $page === 'pppoesales') {
+            $config['currency'] = (string) ($form['currency'] ?? '');
+            $config['receipt_header'] = (string) ($form['receipt_header'] ?? '');
+        } elseif ($page === 'license') {
+            $config['license_key'] = (string) ($form['license_key'] ?? '');
+            $config['company_name'] = (string) ($form['company_name'] ?? '');
+        }
+
+        return $config;
+    }
+
+    private function flash(Request $request): array
+    {
+        $saved = (string) ($request->query['saved'] ?? '');
+        $applied = (string) ($request->query['applied'] ?? '');
+        $error = (string) ($request->query['error'] ?? '');
+
+        if ($error !== '') {
+            return ['type' => 'error', 'message' => rawurldecode($error)];
+        }
+        if ($applied === '1') {
+            return ['type' => 'success', 'message' => 'Applied'];
+        }
+        if ($saved === '1') {
+            return ['type' => 'success', 'message' => 'Saved'];
+        }
+
+        return [];
+    }
+
+    /** @return array<int, array<string, string>> */
+    private function fetchInterfaces(int $deviceId): array
+    {
+        $device = (new DeviceRepository())->findWithSecret($deviceId);
+        if ($device === null) {
+            throw new \RuntimeException('Device not found');
+        }
+
+        $apiPassword = Crypto::decrypt((string) $device['password_ciphertext']);
+        $client = new RouterOSApiClient(
+            (string) $device['host'],
+            (int) $device['api_port'],
+            (bool) $device['use_ssl'],
+            5,
+        );
+
+        $client->connect();
+        $client->login((string) $device['username'], $apiPassword);
+        $rows = $client->rows('/interface/print');
+        $client->disconnect();
+        return $rows;
+    }
+
+    private function applyAdblocker(array $config): void
+    {
+        $deviceId = (int) ($config['device_id'] ?? 0);
+        if ($deviceId <= 0) {
+            throw new \RuntimeException('device_id is required');
+        }
+
+        $device = (new DeviceRepository())->findWithSecret($deviceId);
+        if ($device === null) {
+            throw new \RuntimeException('Device not found');
+        }
+
+        $mode = (string) ($config['mode'] ?? 'disabled');
+        $redirectIp = (string) ($config['redirect_ip'] ?? '0.0.0.0');
+        $allow = $this->parseDomains((string) ($config['allowlist'] ?? ''));
+        $deny = $this->parseDomains((string) ($config['denylist'] ?? ''));
+
+        $denySet = array_values(array_diff($deny, $allow));
+
+        $apiPassword = Crypto::decrypt((string) $device['password_ciphertext']);
+        $client = new RouterOSApiClient(
+            (string) $device['host'],
+            (int) $device['api_port'],
+            (bool) $device['use_ssl'],
+            8,
+        );
+
+        $client->connect();
+        $client->login((string) $device['username'], $apiPassword);
+
+        $existing = $client->rows('/ip/dns/static/print', ['?comment=neofi-adblock']);
+        foreach ($existing as $row) {
+            $id = $row['.id'] ?? '';
+            if (is_string($id) && $id !== '') {
+                $client->command('/ip/dns/static/remove', ['=numbers=' . $id]);
+            }
+        }
+
+        if ($mode === 'enabled') {
+            foreach ($denySet as $domain) {
+                $client->command('/ip/dns/static/add', [
+                    '=name=' . $domain,
+                    '=address=' . $redirectIp,
+                    '=comment=neofi-adblock',
+                ]);
+            }
+        }
+
+        $client->disconnect();
+    }
+
+    private function applyPppoeDefaults(array $config): void
+    {
+        $deviceId = (int) ($config['device_id'] ?? 0);
+        $profile = trim((string) ($config['default_profile'] ?? ''));
+        if ($deviceId <= 0) {
+            throw new \RuntimeException('device_id is required');
+        }
+        if ($profile === '') {
+            throw new \RuntimeException('default_profile is required');
+        }
+
+        $device = (new DeviceRepository())->findWithSecret($deviceId);
+        if ($device === null) {
+            throw new \RuntimeException('Device not found');
+        }
+
+        $apiPassword = Crypto::decrypt((string) $device['password_ciphertext']);
+        $client = new RouterOSApiClient(
+            (string) $device['host'],
+            (int) $device['api_port'],
+            (bool) $device['use_ssl'],
+            8,
+        );
+
+        $client->connect();
+        $client->login((string) $device['username'], $apiPassword);
+
+        $rows = $client->rows('/ppp/profile/print', ['?name=' . $profile]);
+        if (count($rows) === 0) {
+            $client->command('/ppp/profile/add', ['=name=' . $profile]);
+        }
+
+        $client->disconnect();
+    }
+
+    /** @return array<int, string> */
+    private function parseDomains(string $text): array
+    {
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+        $parts = preg_split('/[\n,]+/', $text) ?: [];
+        $out = [];
+        foreach ($parts as $p) {
+            $d = strtolower(trim((string) $p));
+            if ($d === '') {
+                continue;
+            }
+            $d = preg_replace('/\s+/', '', $d) ?? $d;
+            if ($d === '') {
+                continue;
+            }
+            $out[] = $d;
+        }
+
+        $out = array_values(array_unique($out));
+        sort($out);
+        return $out;
     }
 
     private function view(string $view, array $vars): string

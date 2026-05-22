@@ -52,4 +52,9 @@ final class Request
 
         return $decoded;
     }
+
+    public function form(): array
+    {
+        return $_POST;
+    }
 }
