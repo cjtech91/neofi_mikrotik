@@ -34,6 +34,8 @@ Then logout/login.
 
 ## 3) Clone the Project on the Server
 
+You can do this using MobaXterm by connecting to your Ubuntu server via SSH, then running the commands in the terminal.
+
 ```bash
 sudo mkdir -p /opt/neofi_mikrotik
 sudo chown -R $USER:$USER /opt/neofi_mikrotik
