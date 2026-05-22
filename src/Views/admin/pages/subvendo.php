@@ -15,6 +15,7 @@ $minWallet = (string) ($config['min_wallet_balance'] ?? '');
     <div class="hint">Settings placeholder for reseller accounts and commissions.</div>
     <form method="post" action="/admin/subvendo">
       <input type="hidden" name="action" value="save">
+      <input type="hidden" name="csrf_token" value="<?= $e((string) ($csrfToken ?? '')) ?>">
       <div class="row" style="margin-top:10px">
         <div class="col-6">
           <div class="field">

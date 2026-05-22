@@ -15,6 +15,7 @@ $receiptHeader = (string) ($config['receipt_header'] ?? '');
     <div class="hint">Sales configuration placeholder.</div>
     <form method="post" action="/admin/pppoesales">
       <input type="hidden" name="action" value="save">
+      <input type="hidden" name="csrf_token" value="<?= $e((string) ($csrfToken ?? '')) ?>">
       <div class="row" style="margin-top:10px">
         <div class="col-6">
           <div class="field">

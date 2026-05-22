@@ -15,6 +15,7 @@ $companyName = (string) ($config['company_name'] ?? '');
     <div class="hint">License management placeholder.</div>
     <form method="post" action="/admin/license">
       <input type="hidden" name="action" value="save">
+      <input type="hidden" name="csrf_token" value="<?= $e((string) ($csrfToken ?? '')) ?>">
       <div class="row" style="margin-top:10px">
         <div class="col-6">
           <div class="field">

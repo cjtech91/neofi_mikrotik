@@ -16,6 +16,7 @@ $burstLimit = (string) ($config['burst_limit'] ?? '');
     <div class="hint">Settings placeholder for bandwidth profiles and shaping.</div>
     <form method="post" action="/admin/qos">
       <input type="hidden" name="action" value="save">
+      <input type="hidden" name="csrf_token" value="<?= $e((string) ($csrfToken ?? '')) ?>">
       <div class="row" style="margin-top:10px">
         <div class="col-6">
           <div class="field">

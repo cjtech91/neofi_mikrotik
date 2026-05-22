@@ -15,6 +15,7 @@ $length = (string) ($config['length'] ?? '');
     <div class="hint">Settings placeholder for voucher generation rules.</div>
     <form method="post" action="/admin/vouchers">
       <input type="hidden" name="action" value="save">
+      <input type="hidden" name="csrf_token" value="<?= $e((string) ($csrfToken ?? '')) ?>">
       <div class="row" style="margin-top:10px">
         <div class="col-6">
           <div class="field">

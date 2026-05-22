@@ -17,6 +17,7 @@ $denylist = (string) ($config['denylist'] ?? '');
     <h3>Adblocker</h3>
     <div class="hint">Settings placeholder for DNS-based blocking and allow/deny lists.</div>
     <form method="post" action="/admin/adblocker">
+      <input type="hidden" name="csrf_token" value="<?= $e((string) ($csrfToken ?? '')) ?>">
       <div class="row" style="margin-top:10px">
         <div class="col-6">
           <div class="field">

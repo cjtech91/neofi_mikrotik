@@ -15,7 +15,7 @@ $serviceName = (string) ($config['service_name'] ?? '');
     <h3>PPPoE Configuration</h3>
     <div class="hint">Settings placeholder for PPPoE profiles, pools, and defaults.</div>
     <form method="post" action="/admin/pppoe">
-      <input type="hidden" name="action" value="save">
+      <input type="hidden" name="csrf_token" value="<?= $e((string) ($csrfToken ?? '')) ?>">
       <div class="row" style="margin-top:10px">
         <div class="col-6">
           <div class="field">

@@ -15,6 +15,7 @@ $webhookUrl = (string) ($config['webhook_url'] ?? '');
     <div class="hint">Settings placeholder for chat integration.</div>
     <form method="post" action="/admin/chat">
       <input type="hidden" name="action" value="save">
+      <input type="hidden" name="csrf_token" value="<?= $e((string) ($csrfToken ?? '')) ?>">
       <div class="row" style="margin-top:10px">
         <div class="col-6">
           <div class="field">

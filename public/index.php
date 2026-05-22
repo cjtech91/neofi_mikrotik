@@ -28,6 +28,10 @@ if (str_starts_with($request->path, '/admin')) {
         echo 'Unauthorized';
         exit;
     }
+
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
 }
 
 if (str_starts_with($request->path, '/api')) {

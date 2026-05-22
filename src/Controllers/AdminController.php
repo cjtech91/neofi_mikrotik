@@ -113,6 +113,10 @@ final class AdminController
         $action = isset($form['action']) ? (string) $form['action'] : 'save';
 
         try {
+            if (!$this->validateCsrf($form)) {
+                return Response::redirect('/admin/' . $page . '?error=' . rawurlencode('Invalid CSRF token'));
+            }
+
             $config = $this->extractConfig($page, $form);
             (new ModuleConfigRepository())->set($page, $config);
 
@@ -258,6 +262,32 @@ final class AdminController
             'pppoesales',
             'license',
         ], true);
+    }
+
+    private function csrfToken(): string
+    {
+        if (!isset($_SESSION) || !is_array($_SESSION)) {
+            return '';
+        }
+
+        $token = $_SESSION['csrf_token'] ?? null;
+        if (is_string($token) && $token !== '') {
+            return $token;
+        }
+
+        $token = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+        $_SESSION['csrf_token'] = $token;
+        return $token;
+    }
+
+    private function validateCsrf(array $form): bool
+    {
+        $provided = isset($form['csrf_token']) ? (string) $form['csrf_token'] : '';
+        $expected = $this->csrfToken();
+        if ($provided === '' || $expected === '') {
+            return false;
+        }
+        return hash_equals($expected, $provided);
     }
 
     /** @return array<string, mixed> */
@@ -464,6 +494,7 @@ final class AdminController
     {
         $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $vars['e'] = $e;
+        $vars['csrfToken'] = $this->csrfToken();
 
         $path = __DIR__ . '/../Views/' . $view . '.php';
         if (!is_file($path)) {

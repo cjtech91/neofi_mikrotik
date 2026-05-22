@@ -16,6 +16,7 @@ $brandName = (string) ($config['brand_name'] ?? '');
     <div class="hint">Settings placeholder for captive portal pages and branding.</div>
     <form method="post" action="/admin/portal">
       <input type="hidden" name="action" value="save">
+      <input type="hidden" name="csrf_token" value="<?= $e((string) ($csrfToken ?? '')) ?>">
       <div class="row" style="margin-top:10px">
         <div class="col-6">
           <div class="field">
