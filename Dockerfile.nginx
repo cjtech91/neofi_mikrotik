@@ -1,0 +1,7 @@
+FROM nginx:1.27-alpine
+
+RUN apk add --no-cache certbot openssl
+
+EXPOSE 80 443
+
+CMD ["/bin/sh", "-c", "set -e; if [ -n \"$LE_DOMAIN\" ] && [ -n \"$LE_EMAIL\" ]; then if [ \"${LE_STAGING:-0}\" = \"1\" ]; then STAGING=\"--staging\"; else STAGING=\"\"; fi; if [ ! -f \"/etc/letsencrypt/live/$LE_DOMAIN/fullchain.pem\" ]; then certbot certonly --standalone --preferred-challenges http --http-01-port 80 -d \"$LE_DOMAIN\" --email \"$LE_EMAIL\" --agree-tos --non-interactive $STAGING; fi; ( while :; do certbot renew --webroot -w /var/www/certbot --quiet && nginx -s reload; sleep 12h; done ) & fi; nginx -g \"daemon off;\""]
