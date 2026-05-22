@@ -1,0 +1,35 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "0"
+      APP_KEY: "change-me-32-bytes-min"
+      API_KEY: "change-me-api-key"
+      ADMIN_USER: "admin"
+      ADMIN_PASS: "change-me-admin-pass"
+      DB_DSN: "pgsql:host=db;port=5432;dbname=neofi"
+      DB_USER: "neofi"
+      DB_PASS: "neofi_password"
+    depends_on:
+      - db
+    volumes:
+      - ./:/var/www/html
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: neofi
+      POSTGRES_USER: neofi
+      POSTGRES_PASSWORD: neofi_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
